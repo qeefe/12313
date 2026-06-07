@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
-import setuptools
+from pathlib import Path
 
-# 简化版配置，去掉可能出错的README读取逻辑
-setuptools.setup(
-    name="sparse-ct-test",
-    version="0.0.1",
-    author="Test User",
-    author_email="test@example.com",
-    description="Sparse CT Reconstruction",
-    long_description="Sparse CT Reconstruction Package",
-    long_description_content_type="text/markdown",
-    url="",
-    packages=setuptools.find_packages(),
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
+from setuptools import find_packages, setup
+
+
+setup(
+    name="sparse-ct-thesis",
+    version="0.1.0",
+    description="Thesis-ready sparse CT reconstruction demo",
+    packages=find_packages(),
+    install_requires=[
+        "numpy",
+        "matplotlib",
+        "scipy",
+        "scikit-image",
     ],
-    python_requires='>=3.6',
+    include_package_data=True,
 )

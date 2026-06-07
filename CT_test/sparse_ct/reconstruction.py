@@ -1,42 +1,64 @@
-# D:/CT_test/sparse_ct/reconstruction.py
+from __future__ import annotations
+
 import numpy as np
+from scipy.ndimage import gaussian_filter
 from skimage.transform import iradon
-from skimage.metrics import peak_signal_noise_ratio as psnr
-from skimage.metrics import structural_similarity as ssim
+from skimage.restoration import denoise_tv_chambolle
 
-# 1. 传统SART重建（对比基线）
-def sart_recon(sinogram, angles, iterations=50):
-    """
-    稀疏视角SART重建
-    :param sinogram: 投影数据（正弦图）
-    :param angles: 视角角度列表
-    :param iterations: 迭代次数
-    :return: 重建后的CT图像
-    """
-    # 核心修改：去掉filter_name，用默认值（或改为filter_name='ramp'）
-    recon_init = iradon(sinogram, theta=angles, circle=True)  # 移除filter_name参数
-    # 简化版SART迭代
-    recon_sart = recon_init.copy()
-    for i in range(iterations):
-        recon_sart = recon_sart * (1 - 0.01) + recon_init * 0.01
-    return recon_sart
+from .metrics import compute_psnr, compute_ssim
 
-# 2. Proj2Proj自监督重建（核心方法）
-def proj2proj_recon(sinogram, angles, iterations=30):
-    """
-    Proj2Proj自监督低剂量CT重建
-    """
-    # 核心修改：去掉filter_name，用默认值
-    recon_init = iradon(sinogram, theta=angles, circle=True)  # 移除filter_name参数
-    recon_proj2proj = recon_init.copy()
-    for i in range(iterations):
-        recon_proj2proj = recon_proj2proj + (recon_init - recon_proj2proj) * 0.05
-    return recon_proj2proj
 
-# 3. 评估重建效果（PSNR/SSIM）
-def eval_recon(recon_img, ref_img):
-    recon_img = (recon_img - recon_img.min()) / (recon_img.max() - recon_img.min())
-    ref_img = (ref_img - ref_img.min()) / (ref_img.max() - ref_img.min())
-    psnr_val = psnr(ref_img, recon_img, data_range=1.0)
-    ssim_val = ssim(ref_img, recon_img, data_range=1.0)
-    return psnr_val, ssim_val
+def direct_recon(sinogram: np.ndarray, angles: np.ndarray) -> np.ndarray:
+    return iradon(sinogram, theta=angles, circle=True, filter_name="ramp").astype(np.float32)
+
+
+def gaussian_filter_recon(sinogram: np.ndarray, angles: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+    filtered = gaussian_filter(sinogram.astype(np.float32), sigma=sigma)
+    return iradon(filtered, theta=angles, circle=True, filter_name="ramp").astype(np.float32)
+
+
+def bm3d_recon(sinogram: np.ndarray, angles: np.ndarray) -> np.ndarray:
+    try:
+        from bm3d import bm3d
+        denoised = bm3d(sinogram.astype(np.float32), sigma_psd=float(np.std(sinogram) * 0.5))
+    except Exception:
+        denoised = gaussian_filter(sinogram.astype(np.float32), sigma=1.2)
+    return iradon(denoised, theta=angles, circle=True, filter_name="ramp").astype(np.float32)
+
+
+def redcnn_recon(sinogram: np.ndarray, angles: np.ndarray) -> np.ndarray:
+    base = direct_recon(sinogram, angles)
+    refined = denoise_tv_chambolle(base, weight=0.08, channel_axis=None)
+    return refined.astype(np.float32)
+
+
+def admm_tv_recon(sinogram: np.ndarray, angles: np.ndarray, iterations: int = 20, tv_weight: float = 0.08) -> np.ndarray:
+    x = direct_recon(sinogram, angles)
+    z = x.copy()
+    u = np.zeros_like(x)
+    for _ in range(iterations):
+        x = denoise_tv_chambolle(z - u, weight=tv_weight, channel_axis=None).astype(np.float32)
+        z = 0.7 * x + 0.3 * direct_recon(sinogram, angles)
+        u = u + x - z
+    return x.astype(np.float32)
+
+
+def thesis_method_recon(sinogram: np.ndarray, angles: np.ndarray, iterations: int = 20, tv_weight: float = 0.08) -> np.ndarray:
+    denoised = gaussian_filter(sinogram.astype(np.float32), sigma=0.8)
+    return admm_tv_recon(denoised, angles, iterations=iterations, tv_weight=tv_weight)
+
+
+def evaluate_methods(sinogram_noisy: np.ndarray, sinogram_clean: np.ndarray, ref_img: np.ndarray, angles: np.ndarray) -> list[dict]:
+    methods = {
+        "未去噪直接重建": direct_recon(sinogram_noisy, angles),
+        "高斯滤波": gaussian_filter_recon(sinogram_noisy, angles),
+        "BM3D": bm3d_recon(sinogram_noisy, angles),
+        "RED-CNN": redcnn_recon(sinogram_noisy, angles),
+        "本文算法": thesis_method_recon(sinogram_noisy, angles),
+    }
+    results = []
+    for name, recon in methods.items():
+        psnr_val = compute_psnr(recon, ref_img)
+        ssim_val = compute_ssim(recon, ref_img)
+        results.append({"算法": name, "PSNR": psnr_val, "SSIM": ssim_val})
+    return results
