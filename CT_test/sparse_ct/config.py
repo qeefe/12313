@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -8,11 +8,11 @@ from pathlib import Path
 class ExperimentConfig:
     """统一管理论文复现实验路径与参数。"""
 
-    project_root: Path = Path(__file__).resolve().parents[1]
-    data_dir: Path = project_root / "data"
-    outputs_dir: Path = project_root / "outputs"
-    figures_dir: Path = outputs_dir / "figures"
-    results_csv: Path = outputs_dir / "results.csv"
+    project_root: Path = field(default_factory=lambda: Path(__file__).resolve().parents[1])
+    data_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parents[1] / "data")
+    outputs_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parents[1] / "outputs")
+    figures_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parents[1] / "outputs" / "figures")
+    results_csv: Path = field(default_factory=lambda: Path(__file__).resolve().parents[1] / "outputs" / "results.csv")
 
     image_size: int = 256
     sparse_views: int = 30

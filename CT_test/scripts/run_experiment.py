@@ -30,6 +30,8 @@ from sparse_ct.reconstruction import (
     red_cnn_reconstruction,
 )
 
+METRIC_PRECISION = 4
+
 
 def save_comparison_figure(results: dict[str, dict[str, np.ndarray]], phantom: np.ndarray, config: ExperimentConfig) -> None:
     names = ["direct_recon", "gaussian", "bm3d", "red_cnn", "proposed"]
@@ -61,30 +63,30 @@ def run(config: ExperimentConfig | None = None) -> pd.DataFrame:
     noisy = dataset["noisy_sinogram"]
 
     pipelines = {
-        "direct_recon": direct_reconstruction,
-        "gaussian": gaussian_reconstruction,
-        "bm3d": bm3d_reconstruction,
-        "red_cnn": red_cnn_reconstruction,
-        "proposed": proposed_reconstruction,
+        "direct_recon": {"fn": direct_reconstruction, "has_denoise_stage": False},
+        "gaussian": {"fn": gaussian_reconstruction, "has_denoise_stage": True},
+        "bm3d": {"fn": bm3d_reconstruction, "has_denoise_stage": True},
+        "red_cnn": {"fn": red_cnn_reconstruction, "has_denoise_stage": True},
+        "proposed": {"fn": proposed_reconstruction, "has_denoise_stage": True},
     }
 
     results: dict[str, dict[str, np.ndarray | float]] = {}
     rows = []
 
-    for method, fn in pipelines.items():
-        denoised_sino, recon = fn(noisy, angles, config)
+    for method, pipeline in pipelines.items():
+        denoised_sino, recon = pipeline["fn"](noisy, angles, config)
         psnr, ssim = compute_psnr_ssim(recon, phantom)
-        nsr = noise_suppression_rate(clean, noisy, denoised_sino)
+        nsr = noise_suppression_rate(clean, noisy, denoised_sino) if pipeline["has_denoise_stage"] else None
         dpr = detail_preservation_rate(recon, phantom)
 
         results[method] = {"recon": recon, "denoised": denoised_sino}
         rows.append(
             {
                 "method": method,
-                "psnr": round(psnr, 4),
-                "ssim": round(ssim, 4),
-                "noise_suppression_rate": round(nsr, 4) if method != "direct_recon" else np.nan,
-                "detail_preservation_rate": round(dpr, 4),
+                "psnr": round(psnr, METRIC_PRECISION),
+                "ssim": round(ssim, METRIC_PRECISION),
+                "noise_suppression_rate": round(nsr, METRIC_PRECISION) if nsr is not None else None,
+                "detail_preservation_rate": round(dpr, METRIC_PRECISION),
                 "paper_target_psnr": PAPER_TARGET_RESULTS[method]["psnr"],
                 "paper_target_ssim": PAPER_TARGET_RESULTS[method]["ssim"],
                 "paper_target_noise_suppression_rate": PAPER_TARGET_RESULTS[method]["noise_suppression_rate"],

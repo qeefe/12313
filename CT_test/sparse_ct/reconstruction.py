@@ -13,6 +13,8 @@ from .denoiser import (
 )
 from .metrics import compute_psnr_ssim
 
+SART_COMPAT_ITERATION_SCALE = 10
+
 
 def _fbp_recon(sinogram: np.ndarray, angles: np.ndarray) -> np.ndarray:
     return iradon(sinogram, theta=angles, circle=True, filter_name="ramp")
@@ -66,8 +68,10 @@ def eval_recon(recon_img: np.ndarray, ref_img: np.ndarray) -> tuple[float, float
 
 def sart_recon(sinogram: np.ndarray, angles: np.ndarray, iterations: int = 50) -> np.ndarray:
     """向后兼容：旧demo中的SART接口映射到直接重建。"""
-    _ = iterations
-    return _fbp_recon(sinogram, angles)
+    recon = _fbp_recon(sinogram, angles)
+    for _ in range(max(1, iterations // SART_COMPAT_ITERATION_SCALE)):
+        recon = 0.9 * recon + 0.1 * _fbp_recon(radon(recon, theta=angles, circle=True), angles)
+    return recon
 
 
 def proj2proj_recon(sinogram: np.ndarray, angles: np.ndarray, iterations: int = 30) -> np.ndarray:
