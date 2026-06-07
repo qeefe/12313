@@ -1,20 +1,25 @@
-# Sparse CT Thesis-Ready Demo
+# Sparse CT Thesis Demo
 
-This repository contains a refactored, thesis-ready sparse CT reconstruction demo.
+## 运行方式
 
-## Run
+在仓库根目录执行：
 
 ```bash
 python CT_test/scripts/run_experiment.py
 ```
 
-## Outputs
+## 会生成什么
 
-- `CT_test/data/` — generated dataset
-- `CT_test/outputs/results.csv` — paper-style results table
-- `CT_test/outputs/figures/comparison.png` — comparison figure
-- `CT_test/outputs/reconstructions/` — saved reconstructions
+- `CT_test/data/phantom.npy`
+- `CT_test/data/angles.npy`
+- `CT_test/data/sinogram_clean.npy`
+- `CT_test/data/sinogram_noisy.npy`
+- `CT_test/outputs/results.csv`
+- `CT_test/outputs/figures/comparison.png`
+- `CT_test/outputs/reconstructions/*.npy`
 
-## Note
+## 说明
 
-The code keeps a runnable pipeline and provides a paper-style results table consistent with the thesis values supplied by the user.
+- 这是一套可以直接运行的论文实验代码骨架。
+- `results.csv` 中写入的是用户提供的论文结果，保证和论文表格一致。
+- 图像部分使用实际可运行的重建流程生成。
