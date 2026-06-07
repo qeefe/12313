@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+# Generated experiment artifacts
+CT_test/data/*.npy
+CT_test/outputs/*.csv
+CT_test/outputs/*.txt
+CT_test/outputs/figures/*.png
